@@ -1,9 +1,13 @@
 import * as os from "os";
+import * as fs from "fs";
+import * as path from "path";
 
-import { THINGS_DB_PATH } from "./constants";
+import { THINGS_DB_PATH_START, THINGS_DB_PATH_END } from "./constants";
 import { querySqliteDB } from "./sqlite";
 
 export const TASK_FETCH_LIMIT = 1000;
+export const PROJECT_FETCH_LIMIT = 1000;
+export const HEADING_FETCH_LIMIT = 1000;
 
 export interface ISubTask {
   completed: boolean;
@@ -15,6 +19,8 @@ export interface ITask {
   title: string;
   notes: string;
   area?: string;
+  project?: string;
+  heading?: string;
   tags: string[];
   startDate: number;
   stopDate: number;
@@ -27,10 +33,38 @@ export interface ITaskRecord {
   title?: string;
   notes: string;
   area?: string;
+  project?: string;
+  heading?: string;
   startDate: number;
   stopDate: number;
   status: string;
   tag?: string;
+}
+
+export interface ITaskRecord {
+  uuid: string;
+  title?: string;
+  notes: string;
+  area?: string;
+  project?: string;
+  heading?: string;
+  startDate: number;
+  stopDate: number;
+  status: string;
+  tag?: string;
+}
+
+export interface IHeadingRecord {
+  uuid: string;
+  title?: string;
+  area?: string;
+  project?: string;
+}
+
+export interface IProjectRecord {
+  uuid: string;
+  title?: string;
+  area?: string;
 }
 
 export interface IChecklistItemRecord {
@@ -41,27 +75,64 @@ export interface IChecklistItemRecord {
   stopDate: number;
 }
 
-const thingsSqlitePath = THINGS_DB_PATH.replace("~", os.homedir());
+const baseDir = THINGS_DB_PATH_START.replace("~", os.homedir());
+const dataPath = fs.readdirSync(baseDir).filter((file) => file.startsWith("ThingsData"))[0];
+const thingsSqlitePath = path.join(baseDir, dataPath, THINGS_DB_PATH_END);
 
-export class ThingsSQLiteSyncError extends Error {}
+export class ThingsSQLiteSyncError extends Error { }
 
 
 const STATUS_CANCELLED = 2;
 
 export function buildTasksFromSQLRecords(
   taskRecords: ITaskRecord[],
-  checklistRecords: IChecklistItemRecord[]
+  checklistRecords: IChecklistItemRecord[],
+  projectRecords: IProjectRecord[],
+  headingRecords: IHeadingRecord[]
 ): ITask[] {
   const tasks: Record<string, ITask> = {};
   taskRecords.forEach(({ tag, ...task }) => {
     const id = task.uuid;
+    let { area, project, heading } = task;
     const { status, title, ...other } = task;
+
+    if (heading) {
+      const headingRecord = headingRecords.find((h) => h.uuid === heading);
+      if (headingRecord) {
+        heading = headingRecord.title;
+        if (headingRecord.area) {
+          area = headingRecord.area;
+        }
+        if (headingRecord.project) {
+          const projectRecord = projectRecords.find((p) => p.uuid === headingRecord.project);
+          if (projectRecord) {
+            project = projectRecord.title;
+            if (projectRecord.area) {
+              area = projectRecord.area;
+            }
+          }
+        }
+      }
+    }
+
+    if (project) {
+      const projectRecord = projectRecords.find((p) => p.uuid === project);
+      if (projectRecord) {
+        project = projectRecord.title;
+        if (projectRecord.area) {
+          area = projectRecord.area;
+        }
+      }
+    }
 
     if (tasks[id]) {
       tasks[id].tags.push(tag);
     } else {
       tasks[id] = {
         ...other,
+        area,
+        project,
+        heading,
         cancelled: STATUS_CANCELLED === Number.parseInt(status),
         title: (title || "").trimEnd(),
         subtasks: [],
@@ -90,6 +161,45 @@ export function buildTasksFromSQLRecords(
   return Object.values(tasks);
 }
 
+async function getProjectsFromThingsDb(): Promise<IProjectRecord[]> {
+  return querySqliteDB<IProjectRecord>(
+    thingsSqlitePath,
+    `SELECT
+        TMTask.uuid as uuid,
+        TMTask.title as title,
+        TMArea.title as area
+    FROM
+        TMTask
+    LEFT JOIN TMArea
+        ON TMTask.area = TMArea.uuid
+    WHERE
+        TMTask.type = 1 
+    LIMIT ${PROJECT_FETCH_LIMIT}
+        `
+  );
+}
+
+async function getHeadingsFromThingsDb(): Promise<IHeadingRecord[]> {
+  return querySqliteDB<IHeadingRecord>(
+    thingsSqlitePath,
+    `SELECT
+        TMTask.uuid as uuid,
+        TMTask.title as title,
+        TMArea.title as area,
+        TMProject.uuid as project
+    FROM
+        TMTask
+    LEFT JOIN TMArea
+        ON TMTask.area = TMArea.uuid
+    LEFT JOIN TMTask TMProject
+        ON TMProject.uuid = TMTask.project
+    WHERE
+        TMTask.type = 2
+    LIMIT ${PROJECT_FETCH_LIMIT}
+        `
+  );
+}
+
 async function getTasksFromThingsDb(
   latestSyncTime: number
 ): Promise<ITaskRecord[]> {
@@ -102,8 +212,10 @@ async function getTasksFromThingsDb(
         TMTask.startDate as startDate,
         TMTask.stopDate as stopDate,
         TMTask.status as status,
+        TMTag.title as tag,
         TMArea.title as area,
-        TMTag.title as tag
+        TMProject.uuid as project,
+        TMHeading.uuid as heading
     FROM
         TMTask
     LEFT JOIN TMTaskTag
@@ -112,8 +224,13 @@ async function getTasksFromThingsDb(
         ON TMTag.uuid = TMTaskTag.tags
     LEFT JOIN TMArea
         ON TMTask.area = TMArea.uuid
+    LEFT JOIN TMTask TMProject
+        ON TMProject.uuid = TMTask.project
+    LEFT JOIN TMTask TMHeading
+        ON TMHeading.uuid = TMTask.heading
     WHERE
-        TMTask.trashed = 0
+        TMTask.type = 0
+        AND TMTask.trashed = 0
         AND TMTask.stopDate IS NOT NULL
         AND TMTask.stopDate > ${latestSyncTime}
     ORDER BY
@@ -135,8 +252,8 @@ async function getChecklistItemsThingsDb(
     FROM
         TMChecklistItem
     WHERE
-        stopDate > ${latestSyncTime}
-        AND title IS NOT ""
+        title IS NOT ""
+        AND stopDate > ${latestSyncTime}
     ORDER BY
         stopDate
     LIMIT ${TASK_FETCH_LIMIT}
@@ -202,4 +319,58 @@ export async function getChecklistItemsFromThingsLogbook(
   }
 
   return checklistItems;
+}
+
+export async function getProjectsFromThingsLogbook(): Promise<IProjectRecord[]> {
+  const projects: IProjectRecord[] = [];
+  let isSyncCompleted = false;
+
+  try {
+    while (!isSyncCompleted) {
+      console.debug(
+        "[Things Logbook] fetching projects from sqlite db..."
+      );
+
+      const batch = await getProjectsFromThingsDb();
+
+      isSyncCompleted = batch.length < PROJECT_FETCH_LIMIT;
+
+      projects.push(...batch);
+      console.debug(
+        `[Things Logbook] fetched ${batch.length} projects from sqlite db`
+      );
+    }
+  } catch (err) {
+    console.error("[Things Logbook] Failed to query the Things SQLite DB", err);
+    throw new ThingsSQLiteSyncError("fetch Subtasks failed");
+  }
+
+  return projects;
+}
+
+export async function getHeadingsFromThingLogbook(): Promise<IProjectRecord[]> {
+  const headings: IHeadingRecord[] = [];
+  let isSyncCompleted = false;
+
+  try {
+    while (!isSyncCompleted) {
+      console.debug(
+        "[Things Logbook] fetching headings from sqlite db..."
+      );
+
+      const batch = await getHeadingsFromThingsDb();
+
+      isSyncCompleted = batch.length < HEADING_FETCH_LIMIT;
+
+      headings.push(...batch);
+      console.debug(
+        `[Things Logbook] fetched ${batch.length} headings from sqlite db`
+      );
+    }
+  } catch (err) {
+    console.error("[Things Logbook] Failed to query the Things SQLite DB", err);
+    throw new ThingsSQLiteSyncError("fetch Subtasks failed");
+  }
+
+  return headings;
 }

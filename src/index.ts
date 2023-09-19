@@ -17,6 +17,8 @@ import {
 import {
   buildTasksFromSQLRecords,
   getChecklistItemsFromThingsLogbook,
+  getHeadingsFromThingLogbook,
+  getProjectsFromThingsLogbook,
   getTasksFromThingsLogbook,
   ITask,
 } from "./things";
@@ -114,11 +116,15 @@ export default class ThingsLogbookPlugin extends Plugin {
 
     let taskRecords = [];
     let checklistRecords = [];
+    let projectRecords = [];
+    let headingRecords = [];
     try {
       taskRecords = await getTasksFromThingsLogbook(latestSyncTime);
       checklistRecords = await getChecklistItemsFromThingsLogbook(
         latestSyncTime
       );
+      projectRecords = await getProjectsFromThingsLogbook();
+      headingRecords = await getHeadingsFromThingLogbook();
     } catch (err) {
       new Notice("Things Logbook sync failed");
       return;
@@ -126,7 +132,9 @@ export default class ThingsLogbookPlugin extends Plugin {
 
     const tasks: ITask[] = buildTasksFromSQLRecords(
       taskRecords,
-      checklistRecords
+      checklistRecords,
+      projectRecords,
+      headingRecords
     );
 
     const daysToTasks: Record<string, ITask[]> = groupBy(

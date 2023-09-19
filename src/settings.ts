@@ -48,6 +48,7 @@ export class ThingsLogbookSettingsTab extends PluginSettingTab {
     this.addSectionHeadingSetting();
     this.addTagPrefixSetting();
     this.addCanceledMarkSetting();
+    this.addDoesAddNewlineBeforeHeadingsSetting();
 
     this.containerEl.createEl("h3", {
       text: "Sync",
@@ -55,6 +56,7 @@ export class ThingsLogbookSettingsTab extends PluginSettingTab {
     this.addSyncEnabledSetting();
     this.addSyncIntervalSetting();
     this.addDoesSyncNoteBodySetting();
+    this.addDoesSyncProjectSetting();
   }
 
   addSectionHeadingSetting(): void {
@@ -83,7 +85,7 @@ export class ThingsLogbookSettingsTab extends PluginSettingTab {
       });
   }
 
-  addDoesSyncNoteBodySetting() {
+  addDoesSyncNoteBodySetting(): void {
     new Setting(this.containerEl)
       .setName("Include notes")
       .setDesc('Includes MD notes of a task into the synced Obsidian document')
@@ -123,17 +125,18 @@ export class ThingsLogbookSettingsTab extends PluginSettingTab {
         });
       });
   }
+
   addCanceledMarkSetting(): void {
     new Setting(this.containerEl)
-        .setName("Canceled Mark")
-        .setDesc(
-            "Mark character to use for canceled tasks"
-        )
-        .addText((textfield) => {
-          textfield.setValue(this.plugin.options.canceledMark);
-          textfield.onChange(async (canceledMark) => {
-            this.plugin.writeOptions({ canceledMark });
-          });
+      .setName("Canceled Mark")
+      .setDesc(
+        "Mark character to use for canceled tasks"
+      )
+      .addText((textfield) => {
+        textfield.setValue(this.plugin.options.canceledMark);
+        textfield.onChange(async (canceledMark) => {
+          this.plugin.writeOptions({ canceledMark });
         });
+      });
   }
 }

@@ -6,11 +6,6 @@ export function getHeadingLevel(line = ""): number | null {
   return heading ? heading[1].length : null;
 }
 
-export function toHeading(title: string, level: number): string {
-  const hash = "".padStart(level, "#");
-  return `${hash} ${title}`;
-}
-
 export function getTab(useTab: boolean, tabSize: number): string {
   if (useTab) {
     return "\t";
