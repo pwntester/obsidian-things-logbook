@@ -120,9 +120,7 @@ export default class ThingsLogbookPlugin extends Plugin {
     let headingRecords = [];
     try {
       taskRecords = await getTasksFromThingsLogbook(latestSyncTime);
-      checklistRecords = await getChecklistItemsFromThingsLogbook(
-        latestSyncTime
-      );
+      checklistRecords = await getChecklistItemsFromThingsLogbook(latestSyncTime);
       projectRecords = await getProjectsFromThingsLogbook();
       headingRecords = await getHeadingsFromThingLogbook();
     } catch (err) {

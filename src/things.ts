@@ -232,7 +232,7 @@ async function getTasksFromThingsDb(
         TMTask.type = 0
         AND TMTask.trashed = 0
         AND TMTask.stopDate IS NOT NULL
-        AND TMTask.stopDate > ${latestSyncTime}
+        /* AND TMTask.stopDate > ${latestSyncTime} */
     ORDER BY
         TMTask.stopDate
     LIMIT ${TASK_FETCH_LIMIT}
@@ -253,7 +253,7 @@ async function getChecklistItemsThingsDb(
         TMChecklistItem
     WHERE
         title IS NOT ""
-        AND stopDate > ${latestSyncTime}
+        /*AND stopDate > ${latestSyncTime} */
     ORDER BY
         stopDate
     LIMIT ${TASK_FETCH_LIMIT}

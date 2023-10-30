@@ -48,7 +48,6 @@ export class ThingsLogbookSettingsTab extends PluginSettingTab {
     this.addSectionHeadingSetting();
     this.addTagPrefixSetting();
     this.addCanceledMarkSetting();
-    this.addDoesAddNewlineBeforeHeadingsSetting();
 
     this.containerEl.createEl("h3", {
       text: "Sync",
@@ -56,7 +55,6 @@ export class ThingsLogbookSettingsTab extends PluginSettingTab {
     this.addSyncEnabledSetting();
     this.addSyncIntervalSetting();
     this.addDoesSyncNoteBodySetting();
-    this.addDoesSyncProjectSetting();
   }
 
   addSectionHeadingSetting(): void {

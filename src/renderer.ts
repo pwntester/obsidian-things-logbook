@@ -18,11 +18,11 @@ export class LogbookRenderer {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const vault = this.app.vault as any;
     const tab = getTab(vault.getConfig("useTab"), vault.getConfig("tabSize"));
-    let hash = "".padStart(level, "#");
+    let hash = "".padStart(level, "#") + " ";
     hash = "";
     const indentString = `${tab}`.repeat(indentLevel);
     const link = addLink ? `[[${title}]]` : title;
-    return `${indentString}- ${hash} ${link}`;
+    return `${indentString}- ${hash}${link}`;
   }
 
   renderTask(task: ITask, indentLevel: number): string {
@@ -49,7 +49,7 @@ export class LogbookRenderer {
       : ""
 
     return [
-      `${indentString}- ${task.cancelled ? '[' + this.settings.canceledMark + ']' : ''} ${taskTitle}`,
+      `${indentString}- ${task.cancelled ? '[' + this.settings.canceledMark + '] ' : ''}${taskTitle}`,
       ...notes,
       ...task.subtasks.map(
         (subtask: ISubTask) =>
@@ -64,12 +64,14 @@ export class LogbookRenderer {
     const { sectionHeading } = this.settings;
     const headingLevel = getHeadingLevel(sectionHeading);
     const indentLevel = 0;
-    const output = [sectionHeading];
+    const output = [sectionHeading, ""];
 
     // Tasks with no area and no project
     const tasksWithoutAreaAndProject = tasks.filter((task) => (!task.area || task.area === "") && (!task.project || task.project === ""));
     tasksWithoutAreaAndProject.forEach((task) => {
-      output.push(this.renderTask(task, indentLevel));
+      if (task.title !== "Morning routine") {
+        output.push(this.renderTask(task, indentLevel));
+      }
     });
 
     // Tasks with no area, but with project
@@ -114,7 +116,9 @@ export class LogbookRenderer {
         // tasks with area, project and no heading
         const tasksWithAreaAndProjectButNoHeading = tasks.filter((task) => !task.heading || task.heading === "");
         tasksWithAreaAndProjectButNoHeading.forEach((task) => {
-          output.push(this.renderTask(task, indentLevel + 2));
+          if (task.title !== "Morning routine") {
+            output.push(this.renderTask(task, indentLevel + 2));
+          }
         });
 
         // Tasks with area, project and heading
