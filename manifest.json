@@ -4,7 +4,7 @@
   "description": "Sync your Things.app Logbook with Daily Notes",
   "version": "0.1.16",
   "author": "Liam Cain",
-  "authorUrl": "https://github.com/liamcain/",
+  "authorUrl": "https://github.com/pwntester/",
   "isDesktopOnly": true,
   "minAppVersion": "0.10.8"
 }
